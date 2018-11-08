@@ -67,6 +67,8 @@ wp <- data_frame(line = 1:length(WestPoint$text),
 text_df = bind_rows(usma,wp) %>%
   lat_lng() %>% select(-coords)
 
+#### START RUNNING AT THIS LINE#######
+
 addtothisdf = read_csv("PAOTweets.csv")
 
 added = text_df %>% bind_rows(addtothisdf) %>%
