@@ -31,7 +31,7 @@ USMA <- search_tweets(
 WestPoint <- search_tweets(
   '"West Point"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
 )
-names(USMA)
+
 
 # 
 # rt %>% leaflet() %>% setView(-100, 40, zoom = 4) %>%
@@ -67,29 +67,49 @@ wp <- data_frame(line = 1:length(WestPoint$text),
 text_df = bind_rows(usma,wp) %>%
   lat_lng() %>% select(-coords)
 
+addtothisdf = read_csv("PAOTweets.csv")
 
-# addtothisdf = read_csv("yvm.csv")
+added = text_df %>% bind_rows(addtothisdf) %>%
+  distinct(text,time,searchterm, .keep_all = TRUE)
 
+write.csv(added,"PAOTweets.csv", row.names = FALSE)
 
-# addtothisdf = text_df %>% bind_rows(addtothisdf) %>%
-#   distinct(text,time,team, .keep_all = TRUE) 
-
-# write.csv(addtothisdf,"yvm.csv", row.names = FALSE)
-
-textcleaned = text_df %>%
+textcleaned = added %>%
   unnest_tokens(word, text)
 
 cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount)
 # dropwords = data.frame(word = as.character(c("https","trump")))
 # cleanedarticle = anti_join(cleanedarticle,dropwords, by = "word")
 
+####################
+# Insites To Present
+####################
 
+
+### Sentiment by Day
 cleanedarticle %>%
   full_join(get_sentiments("nrc"), by = "word") %>%
   # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
   filter(complete.cases(.)) %>%
   filter(sentiment=="positive" | sentiment == "negative") %>%
   mutate(time = floor_date(time, unit = "day")) %>%
+  mutate(dayofweek = weekdays(time)) %>%
+  ggplot(aes(sentiment, fill = sentiment)) +
+  geom_bar() +
+  # facet_grid(~time)
+  facet_wrap(time~dayofweek, ncol = 7) +
+  labs(title = "Total Sentiment over Time", xlab = "Sentiment Type", ylab = "Number of Words with Sentiment")
+
+
+
+### On Sunday, who was the most influential negative tweater
+cleanedarticle %>%
+  full_join(get_sentiments("nrc"), by = "word") %>%
+  # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
+  filter(complete.cases(.)) %>%
+  filter(sentiment=="positive" | sentiment == "negative") %>%
+  mutate(time = floor_date(time, unit = "day")) %>%
+  mutate(dayofweek = weekdays(time)) %>%
   filter(as.character(time)=="2018-11-04") %>%
   arrange(desc(followerscount)) %>%
   group_by(screenname,sentiment) %>%
@@ -100,104 +120,52 @@ cleanedarticle %>%
 
 
 
-test =text_df %>% filter(screenname=="WarInstitute") %>% select(text) 
-test$text
+# Who is this twitter user 
+negexample = added %>% filter(screenname=="OnMontagueSt") %>% select(text) 
+negexample$text
 
-
+#### Now, back to normal
 cleanedarticle %>%
   full_join(get_sentiments("nrc"), by = "word") %>%
-  # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
   filter(complete.cases(.)) %>%
   filter(sentiment=="positive" | sentiment == "negative") %>%
   mutate(time = floor_date(time, unit = "day")) %>%
-  ggplot(aes(sentiment, fill = sentiment)) +
-  geom_bar() +
-  facet_grid(~time)
+  mutate(dayofweek = weekdays(time)) %>%
+  filter(as.character(time)=="2018-11-06") %>%
+  arrange(desc(followerscount)) %>%
+  group_by(screenname,sentiment) %>%
+  mutate(total = n()) %>%
+  distinct(screenname,sentiment, followerscount,favoritescount,total) %>%
+  arrange(desc(favoritescount)) 
 
-addtothisdf %>%
-  mutate(team = ifelse(team=="mets", "Mets","USMA")) %>%
-  select(line,team) %>%
-  ggplot(aes(x=team, fill = team), color = team) +
-  geom_bar() +
-  scale_colour_manual(values = c("blue", "white")) +
-  scale_fill_manual(values = c("orange", "navy blue")) +
-  labs(title = "Total Number of Tweets \n Containing Team's Name", x = "Team", y = "Tweets", fill = "Team")
+example1 = added %>% filter(screenname=="marcorubio") %>% select(text) 
+example1$text
 
-textcleaned %>%
-  mutate(team = ifelse(team=="mets", "Mets","Yankees")) %>%
-  select(line,team) %>%
-  ggplot(aes(x=team, fill = team), color = team) +
-  geom_bar() +
-  scale_colour_manual(values = c("blue", "white")) +
-  scale_fill_manual(values = c("orange", "navy blue")) +
-  labs(title = "Total Number of Words in Tweets \n Containing Team's Name", x = "Team", y = "Words", fill = "Team")
+example2 = added %>% filter(screenname=="SecPompeo") %>% select(text) 
+example2$text
 
-
-bind_rows(
-  text_df %>%
-    filter(str_detect(text, "Yankees")) %>%
-    mutate(text = gsub(".*Yankees","",.$text)) %>%
-    mutate(text = word(text,2,7)),
-  
-  text_df %>%
-    filter(str_detect(text, "Mets")) %>%
-    mutate(text = gsub(".*Mets","",.$text)) %>%
-    mutate(text = word(text,2,7))
-) %>%
-  select(text, team) %>%
-  filter(complete.cases(.)) %>%
-  unnest_tokens(word, text) %>%
-  anti_join(stop_words, by = "word") %>%
+### Common Words
+cleanedarticle %>%
   full_join(get_sentiments("nrc"), by = "word") %>%
   filter(complete.cases(.)) %>%
-  # filter(sentiment=="positive" | sentiment == "negative") %>%
-  mutate(team = ifelse(team=="mets", "Mets","Yankees")) %>%
-  group_by(team,word) %>% 
-  mutate(count = n()) %>%
-  ggplot(aes(x=team, fill = team)) +
-  geom_bar() +
-  facet_wrap("sentiment") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  scale_colour_manual(values = c("blue", "white")) +
-  scale_fill_manual(values = c("orange", "navy blue")) +
-  labs(title = "Total Emotion Words in Tweets", x = "Team", y = "Words With Sentiment", fill = "Team")
-
-bind_rows(
-  text_df %>%
-    filter(str_detect(text, "Yankees")) %>%
-    mutate(text = gsub(".*Yankees","",.$text)) %>%
-    mutate(text = word(text,2,7)),
+  filter(sentiment=="positive" | sentiment == "negative") %>%
+  mutate(time = floor_date(time, unit = "day")) %>%
+  mutate(dayofweek = weekdays(time)) %>%
+  group_by(word,sentiment) %>%
+  summarise(n=n()) %>%
+  arrange(desc(n))
   
-  text_df %>%
-    filter(str_detect(text, "Mets")) %>%
-    mutate(text = gsub(".*Mets","",.$text)) %>%
-    mutate(text = word(text,2,7))
-) %>%
-  select(text, team, line) %>%
-  filter(complete.cases(.)) %>%
-  unnest_tokens(word, text) %>%
-  anti_join(stop_words, by = "word") %>%
-  full_join(get_sentiments("nrc"), by = "word") %>%
-  filter(complete.cases(.)) %>%
-  # filter(sentiment=="positive" | sentiment == "negative") %>%
-  mutate(team = ifelse(team=="mets", "Mets","Yankees")) %>%
-  group_by(team,sentiment) %>% 
-  mutate(count = n()) %>%
-  summarise(grouptotal = n()) %>%
-  mutate(totaltweets = ifelse(team=="Yankees", sum(text_df$team=="yankees"),sum(text_df$team=="mets"))) %>%
-  mutate(percent = grouptotal/totaltweets) %>%
-  ggplot(aes(x=team, y = percent, fill = team)) +
-  geom_bar(stat = 'identity') +
-  facet_wrap("sentiment") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  scale_colour_manual(values = c("blue", "white")) +
-  scale_fill_manual(values = c("orange", "navy blue")) +
-  labs(title = "Percent of Tweets with Specific Emotion by Team", x = "Team", y = "Percent", fill = "Team")
+### Common Word Pairs
+added %>% select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>% 
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  group_by(bigram) %>%
+  summarise(n=n()) %>%
+  arrange(desc(n))
 
 
-####
+#### -- Bigram Look
 
-austen_bigrams <- addtothisdf %>% select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>% 
+austen_bigrams <- added %>% select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>% 
   unnest_tokens(bigram, text, token = "ngrams", n = 2)
 
 bigrams_separated <- austen_bigrams %>%
@@ -218,44 +186,50 @@ bigram_counts
 bigrams_united <- bigrams_filtered %>%
   unite(bigram, word1, word2, sep = " ")
 
-bigrams_united
+bigrams_united %>%
+  group_by(bigram) %>%
+  mutate(prop = n()/nrow(bigrams_united)) %>% 
+  # arrange(desc(prop))
+  filter(prop>.01) %>%
+  ggplot(aes(bigram, prop)) + 
+  geom_col()
 
-bigrams_filtered %>%
-  filter(word1 == "yankees") %>%
-  count(team, word2, sort = TRUE)
-
-bigrams_filtered %>%
-  filter(word1 == "mets") %>%
-  count(team, word2, sort = TRUE)
-
-bigram_tf_idf <- bigrams_united %>%
-  count(team, bigram) %>%
-  bind_tf_idf(bigram, team, n) %>%
-  arrange(desc(tf_idf))
-
-bigrams_united %>% mutate(team = ifelse(team=="mets", "Mets","Yankees")) %>%
-  filter(bigram != "york mets" & bigram != "york yankees") %>%
+bigrams_united %>% 
   group_by(bigram) %>%
   mutate(n = n()) %>%
   filter(n()>50) %>%
-  ggplot(aes(x=fct_reorder(bigram, n), fill = team), color = team) +
+  ggplot(aes(x=fct_reorder(bigram, n))) +
+  geom_bar() +
+  # theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  coord_flip() +
+  labs(title = "Popular Word Pairs in Tweets", x = "Content", y = "Bigram Count")
+
+#### Sentiment chagne over time
+
+cleanedarticle %>%
+  full_join(get_sentiments("nrc"), by = "word") %>%
+  filter(complete.cases(.)) %>%
+  filter(sentiment=="positive" | sentiment == "negative") %>%
+  mutate(time = floor_date(time, unit = "day")) %>%
+  mutate(score = ifelse(sentiment=="positive",1,-1)) %>%
+  group_by(time) %>%
+  summarise(dayscore = sum(score)/sum(abs(score))) %>%
+  ggplot(aes(time,dayscore, color = dayscore)) +
+  geom_smooth() +
+  theme(legend.position = "none") +
+  labs(title = "Sentiment Score Over Time", x = "Date", y = "Sentiment Score")  
+  
+
+#### Sentiment Score Over Time
+
+textcleaned %>%
+  mutate(team = ifelse(team=="mets", "Mets","Yankees")) %>%
+  select(line,team) %>%
+  ggplot(aes(x=team, fill = team), color = team) +
   geom_bar() +
   scale_colour_manual(values = c("blue", "white")) +
   scale_fill_manual(values = c("orange", "navy blue")) +
-  facet_wrap("team")+
-  # theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  coord_flip() +
-  labs(title = "Popular Content with Mets and Yankees Tweets", x = "Content", y = "Bigram Count", fill = "Team")
+  labs(title = "Total Number of Words in Tweets \n Containing Team's Name", x = "Team", y = "Words", fill = "Team")
 
 
 
-
-
-
-addtothisdf %>% select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
-  unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
-  separate(trigram, c("word1", "word2", "word3"), sep = " ") %>%
-  filter(!word1 %in% stop_words$word,
-         !word2 %in% stop_words$word,
-         !word3 %in% stop_words$word) %>%
-  count(word1, word2, word3, sort = TRUE)
