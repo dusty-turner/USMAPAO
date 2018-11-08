@@ -218,20 +218,8 @@ cleanedarticle %>%
   summarise(dayscore = sum(score)/sum(abs(score))) %>%
   ggplot(aes(time,dayscore, color = dayscore)) +
   geom_smooth() +
+  # geom_line() +
   theme(legend.position = "none") +
   labs(title = "Sentiment Score Over Time", x = "Date", y = "Sentiment Score")  
   
-
-#### Sentiment Score Over Time
-
-textcleaned %>%
-  mutate(team = ifelse(team=="mets", "Mets","Yankees")) %>%
-  select(line,team) %>%
-  ggplot(aes(x=team, fill = team), color = team) +
-  geom_bar() +
-  scale_colour_manual(values = c("blue", "white")) +
-  scale_fill_manual(values = c("orange", "navy blue")) +
-  labs(title = "Total Number of Words in Tweets \n Containing Team's Name", x = "Team", y = "Words", fill = "Team")
-
-
 
