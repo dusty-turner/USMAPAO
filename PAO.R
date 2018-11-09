@@ -123,7 +123,9 @@ cleanedarticle %>%
 
 
 # Who is this twitter user 
-negexample = added %>% filter(screenname=="OnMontagueSt") %>% select(text) 
+negexample = added %>% filter(screenname=="OnMontagueSt") %>% select(text)
+negexample = added %>% filter(screenname=="WestPoint_USMA") %>% select(text,favoritescount) %>% filter(favoritescount==387)
+  
 negexample$text
 
 #### Now, back to normal
@@ -143,7 +145,10 @@ cleanedarticle %>%
 example1 = added %>% filter(screenname=="marcorubio") %>% select(text) 
 example1$text
 
-example2 = added %>% filter(screenname=="SecPompeo") %>% select(text) 
+example2 = added %>% filter(screenname=="ReaganBattalion") %>% select(text) 
+example2$text
+
+example2 = added %>% filter(screenname=="VP") %>% select(text) 
 example2$text
 
 ### Common Words
@@ -188,14 +193,6 @@ bigram_counts
 bigrams_united <- bigrams_filtered %>%
   unite(bigram, word1, word2, sep = " ")
 
-bigrams_united %>%
-  group_by(bigram) %>%
-  mutate(prop = n()/nrow(bigrams_united)) %>% 
-  # arrange(desc(prop))
-  filter(prop>.01) %>%
-  ggplot(aes(bigram, prop)) + 
-  geom_col()
-
 bigrams_united %>% 
   group_by(bigram) %>%
   mutate(n = n()) %>%
@@ -217,9 +214,9 @@ cleanedarticle %>%
   group_by(time) %>%
   summarise(dayscore = sum(score)/sum(abs(score))) %>%
   ggplot(aes(time,dayscore, color = dayscore)) +
-  geom_smooth() +
-  # geom_line() +
+  # geom_smooth() +
+  geom_line() +
   theme(legend.position = "none") +
-  labs(title = "Sentiment Score Over Time", x = "Date", y = "Sentiment Score")  
+  labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score")  
   
 
