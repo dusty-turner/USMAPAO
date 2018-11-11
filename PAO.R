@@ -1,9 +1,10 @@
-# devtools::install_github("mkearney/rtweet")
+#devtools::install_github("mkearney/rtweet")
 #Test to check connectivityasdf 
 library(rtweet)
 library(tidyverse)
 library(tidytext)
 library(lubridate)
+library(igraph)
 # install.packages("rtweet")
 
 # ## whatever name you assigned to your created app
@@ -24,6 +25,7 @@ twitter_token <- create_token(
   consumer_key = key,
   consumer_secret = secret)
 
+??create_token
 
 USMA <- search_tweets(
   "USMA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
@@ -218,5 +220,78 @@ cleanedarticle %>%
   geom_line() +
   theme(legend.position = "none") +
   labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score")  
+
+
+
+####Creating a Network of Neg. Tweeters########  
+
+#Select the Neg Tweets and count them by user
+Neg.Tweets=cleanedarticle%>%
+  full_join(get_sentiments("nrc"), by = "word") %>%
+  filter(complete.cases(.))%>%
+  filter(sentiment=="negative")%>%
+  group_by(screenname)%>%
+  summarise(Total.Neg = n())%>%
+  arrange(desc(Total.Neg))
+
+
+
+#Find the n biggest frequency
+
+n=20
+
+Biggest.Neg=Neg.Tweets%>%
+  slice(1:n)%>%
+  select(screenname)
+
+g.DF=NULL
+
+for(i in 1:n){
   
+  #remove first name from list
+  name = Biggest.Neg[i,1]%>%
+    as.character()
+  
+  #get the followers
+  Neg.Followers=name%>%
+    get_followers()%>%
+    slice(1:n)
+  
+  if(length(Neg.Followers)>0){
+    
+    #get the screen names of followers
+    Screen.Names=lookup_users(Neg.Followers$user_id)%>%
+      select(screen_name,followers_count)
+    
+    #add them to the dataframe
+    df=Screen.Names%>%
+      mutate(Name = name)%>%
+      select(Name,screen_name,followers_count)%>%
+      as.data.frame()
+    
+    #keep a frame
+    g.DF = rbind(g.DF,df)
+    
+  }
+  else{
+    
+    Screen.Names = NULL
+    
+  }
+  
+  
+}
+
+#Plot Graph
+g<-graph.data.frame(g.DF,directed = F)
+plot(g)
+
+#Make adjaceny matrix
+adj.mat=get.adjacency(g)%>%
+  as.matrix()%>%
+  as.tibble()
+
+#calculate eigenvector centrality
+Eigen.Centrality = eigen_centrality(g)
+
 
