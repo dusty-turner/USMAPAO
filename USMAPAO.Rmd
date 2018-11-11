@@ -1,0 +1,131 @@
+---
+title: "USMAPAO"
+author: "D/Math LTC Clark and MAJ Turner"
+date: "November 9, 2018"
+output: 
+  html_document:
+    theme: united
+    highlight: tango
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    smooth_scroll: TRUE
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview
+
+The following analysis is provided to the USMA PAO on behalf of the CDAS in the Department of MAthematical Sciences.  The purpose is to gain insight into the social media landscape surrounding the the United States Military Academy at West Point.
+
+```{r include=FALSE}
+library(tidyverse)
+library(tidytext)
+library(lubridate)
+added = read_csv("PAOTweets.csv")
+
+textcleaned = added %>%
+  unnest_tokens(word, text)
+
+cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount)
+
+mintime = min(cleanedarticle$time)
+```
+
+
+# Sentiment by Day
+
+The Plot tab below shows the number of words with both positive and negative sentiment by day.
+
+The table tab below shows the words with sentiment by user, time, follower count, and favorite count.  
+
+
+```{r panels, echo=FALSE}
+library(shiny)
+ui <- fluidPage(
+  dateRangeInput('dateRange',
+    label = 'Please use the filter below to narrow your search criteria between dates of interest.',
+    start = mintime,
+    end = Sys.Date()),
+  tabsetPanel(type = "tabs",
+              tabPanel("Plot", plotOutput("sentovertime")),
+              tabPanel("Tweets", dataTableOutput("tweettable")
+   )
+  )
+)
+server <- function(input, output) {
+   
+  dataset = reactive({
+    filtered = cleanedarticle %>%
+    full_join(get_sentiments("nrc"), by = "word") %>%
+    # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
+    filter(complete.cases(.)) %>%
+    filter(sentiment == "positive" | sentiment == "negative") %>%
+    mutate(time = floor_date(time, unit = "day")) %>%
+    mutate(dayofweek = weekdays(time)) %>%
+    filter(time <= input$dateRange[2]) %>%
+    filter(time >= input$dateRange[1])
+    return(filtered)
+  })
+  
+  output$sentovertime = renderPlot({
+    ggplot(dataset(), aes(sentiment, fill = sentiment)) +
+    geom_bar() +
+    facet_wrap(time ~ dayofweek, ncol = 7)
+  })
+  
+  output$text = renderText({
+    this = as.character(input$dateRange)
+    this = this[2]
+    return(this)
+  })
+
+  output$tweettable = renderDataTable({
+    return(dataset())
+  })
+  
+}
+
+shinyApp(ui = ui, server = server, options = list(height=600))
+
+```
+
+# Filtering Tweets of Interest
+
+```{r singletweets, echo=FALSE}
+library(shiny)
+ui <- fluidPage(
+  dateRangeInput('dateRange',
+    label = 'Please use the filter below to narrow your search criteria between dates of interest.',
+    start = mintime,
+    end = Sys.Date()
+  ),
+  dataTableOutput("tweettable")
+)
+  
+
+server <- function(input, output) {
+   
+  dataset = reactive({
+    filtered = added %>%
+    mutate(time = floor_date(time, unit = "day")) %>%
+    mutate(dayofweek = weekdays(time)) %>%
+    filter(time <= input$dateRange[2]) %>%
+    filter(time >= input$dateRange[1]) %>%
+      select(screenname, text, time)
+    return(filtered)
+  })
+  
+
+  output$tweettable = renderDataTable(dataset(),{
+   options = list(pageLength = 10)
+  })
+  
+}
+
+shinyApp(ui = ui, server = server, options = list(height=800))
+
+```
