@@ -60,7 +60,7 @@ added = read_csv("PAOTweets.csv")
 textcleaned = added %>%
   unnest_tokens(word, text)
 
-cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount)
+cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount, searchterm)
 
 mintime = min(cleanedarticle$time)
 ```
@@ -226,13 +226,19 @@ ui <- fluidPage(
 server <- function(input, output) {
 
   dataset = reactive({
-filtered =  cleanedarticle %>%
+    filtered =  cleanedarticle %>%
+    mutate(Academy = case_when(searchterm=="USMA" ~ "West Point",
+                             searchterm=="WestPoint" ~ "West Point",
+                             searchterm=="USNA" ~ "Navy",
+                             searchterm=="United States NAval Academy" ~ "Navy",
+                             searchterm=="Air Force Academy" ~ "Air Force",
+                             searchterm=="USAFA" ~ "Air Force")) %>%
     full_join(get_sentiments("nrc"), by = "word") %>%
     filter(complete.cases(.)) %>%
     filter(sentiment == "positive" | sentiment == "negative") %>%
     mutate(time = floor_date(time, unit = "day")) %>%
     mutate(score = ifelse(sentiment == "positive", 1, -1)) %>%
-    group_by(time) %>%
+    group_by(time, Academy) %>%
     summarise(dayscore = sum(score) / sum(abs(score))) 
       return(filtered)
   })
@@ -241,7 +247,7 @@ filtered =  cleanedarticle %>%
   output$heartbeat = renderPlot({
     if (input$option == "riged") {
     dataset() %>%
-    ggplot(aes(time, dayscore, color = dayscore)) +
+    ggplot(aes(time, dayscore, color = Academy)) +
     geom_line() +
     # geom_smooth() +
     theme(legend.position = "none") +
@@ -249,7 +255,7 @@ filtered =  cleanedarticle %>%
     ylim(-1,1)
     } else if (input$option == "smooth") {
     dataset() %>%
-    ggplot(aes(time, dayscore, color = dayscore)) +
+    ggplot(aes(time, dayscore, color = Academy)) +
     geom_smooth() +
     theme(legend.position = "none") +
     labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score") +

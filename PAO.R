@@ -5,6 +5,7 @@ library(tidyverse)
 library(tidytext)
 library(lubridate)
 library(igraph)
+library(googlesheets)
 # install.packages("rtweet")
 
 # ## whatever name you assigned to your created app
@@ -34,6 +35,19 @@ WestPoint <- search_tweets(
   '"West Point"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
 )
 
+USNA <- search_tweets(
+  "USNA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
+)
+USNavalA <- search_tweets(
+  '"Naval Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
+)
+USAFA <- search_tweets(
+  "USAFA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
+)
+AFA <- search_tweets(
+  '"Air Force Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
+)
+
 
 # 
 # rt %>% leaflet() %>% setView(-100, 40, zoom = 4) %>%
@@ -48,12 +62,6 @@ usma <- data_frame(line = 1:length(USMA$text),
                    location = USMA$location, 
                    followerscount = USMA$followers_count, 
                    favoritescount = USMA$favorite_count)
-wp %>%
-  # arrange(desc(favoritescount)) %>% select(screenname,favoritescount, followerscount)
-  filter(screenname=="Boyd_2650") %>% select(text,location)
-  # select(media_t.co, media_expanded_url,media_url,media_type)
-
-
 
 wp <- data_frame(line = 1:length(WestPoint$text), 
                    text = as.character(WestPoint$text),
@@ -64,24 +72,70 @@ wp <- data_frame(line = 1:length(WestPoint$text),
                    location = WestPoint$location, 
                    followerscount = WestPoint$followers_count, 
                    favoritescount = WestPoint$favorite_count)
-  
 
-text_df = bind_rows(usma,wp) %>%
+usna <- data_frame(line = 1:length(USNA$text), 
+                   text = as.character(USNA$text),
+                   screenname = USNA$screen_name,
+                   time = USNA$created_at, 
+                   searchterm = "USNA", 
+                   coords = USNA$coords_coords, 
+                   location = USNA$location, 
+                   followerscount = USNA$followers_count, 
+                   favoritescount = USNA$favorite_count)
+
+naval <- data_frame(line = 1:length(USNavalA$text), 
+                   text = as.character(USNavalA$text),
+                   screenname = USNavalA$screen_name,
+                   time = USNavalA$created_at, 
+                   searchterm = "Naval Academy", 
+                   coords = USNavalA$coords_coords, 
+                   location = USNavalA$location, 
+                   followerscount = USNavalA$followers_count, 
+                   favoritescount = USNavalA$favorite_count)
+
+usafa <- data_frame(line = 1:length(USAFA$text), 
+                   text = as.character(USAFA$text),
+                   screenname = USAFA$screen_name,
+                   time = USAFA$created_at, 
+                   searchterm = "USAFA", 
+                   coords = USAFA$coords_coords, 
+                   location = USAFA$location, 
+                   followerscount = USAFA$followers_count, 
+                   favoritescount = USAFA$favorite_count)
+
+usaf <- data_frame(line = 1:length(AFA$text), 
+                   text = as.character(AFA$text),
+                   screenname = AFA$screen_name,
+                   time = AFA$created_at, 
+                   searchterm = "Air Force Academy", 
+                   coords = AFA$coords_coords, 
+                   location = AFA$location, 
+                   followerscount = AFA$followers_count, 
+                   favoritescount = AFA$favorite_count)
+
+text_df = bind_rows(usma,wp,usna,naval,usaf,usafa) %>%
   lat_lng() %>% select(-coords)
 
 #### START RUNNING AT THIS LINE#######
 
-addtothisdf = read_csv("PAOTweets.csv")
+# addtothisdf = read_csv("PAOTweets.csv")
+for_gs <- gs_title("USMAPAO")
+addtothisdf <- gs_read(for_gs)
+
 
 added = text_df %>% bind_rows(addtothisdf) %>%
   distinct(text,time,searchterm, .keep_all = TRUE)
 
-write.csv(added,"PAOTweets.csv", row.names = FALSE)
+gs_edit_cells(for_gs, ws = "Sheet1", anchor = "A1", input = addtothisdf, byrow = FALSE, trim = TRUE)
+
+
+# write.csv(added,"PAOTweets.csv", row.names = FALSE)
+
 
 textcleaned = added %>%
   unnest_tokens(word, text)
 
-cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount)
+cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount, searchterm)
 # dropwords = data.frame(word = as.character(c("https","trump")))
 # cleanedarticle = anti_join(cleanedarticle,dropwords, by = "word")
 
@@ -89,10 +143,10 @@ cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,
 # Insites To Present
 ####################
 
-
 ### Sentiment by Day
 cleanedarticle %>%
-  full_join(get_sentiments("nrc"), by = "word") %>%
+  full_join(get_sentiments("nrc"), by = "word") %>% 
+  filter(searchterm == "USMA" | searchterm == "West Point") %>%
   # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
   filter(complete.cases(.)) %>%
   filter(sentiment=="positive" | sentiment == "negative") %>%
@@ -119,10 +173,18 @@ cleanedarticle %>%
   group_by(screenname,sentiment) %>%
   mutate(total = n()) %>%
   distinct(screenname,sentiment, followerscount,favoritescount,total) %>%
-  arrange(desc(favoritescount)) %>%
-  filter(sentiment=="negative")
+  filter(sentiment=="negative") %>%
+  group_by(screenname) %>%
+  summarise(FollowersCount = mean(followerscount), FavoritesCount = max(favoritescount), Total = sum(total)) %>%
+  arrange(desc(FavoritesCount)) 
 
 
+added %>%
+  mutate(time = floor_date(time, unit = "day")) %>%
+  mutate(dayofweek = weekdays(time)) %>%
+  # filter(time <= input$dateRange[2]) %>%
+  # filter(time >= input$dateRange[1]) %>%
+  select(screenname, text, time)
 
 # Who is this twitter user 
 negexample = added %>% filter(screenname=="OnMontagueSt") %>% select(text)
@@ -206,19 +268,26 @@ bigrams_united %>%
   labs(title = "Popular Word Pairs in Tweets", x = "Content", y = "Bigram Count")
 
 #### Sentiment chagne over time
+cleanedarticle$searchterm %>% unique()
 
-cleanedarticle %>%
+cleanedarticle %>% 
+  mutate(Academy = case_when(searchterm=="USMA" ~ "West Point",
+                             searchterm=="WestPoint" ~ "West Point",
+                             searchterm=="USNA" ~ "Navy",
+                             searchterm=="United States NAval Academy" ~ "Navy",
+                             searchterm=="Air Force Academy" ~ "Air Force",
+                             searchterm=="USAFA" ~ "Air Force")) %>%
   full_join(get_sentiments("nrc"), by = "word") %>%
   filter(complete.cases(.)) %>%
   filter(sentiment=="positive" | sentiment == "negative") %>%
   mutate(time = floor_date(time, unit = "day")) %>%
   mutate(score = ifelse(sentiment=="positive",1,-1)) %>%
-  group_by(time) %>%
+  group_by(time, Academy) %>%
   summarise(dayscore = sum(score)/sum(abs(score))) %>%
-  ggplot(aes(time,dayscore, color = dayscore)) +
-  # geom_smooth() +
-  geom_line() +
-  theme(legend.position = "none") +
+  ggplot(aes(time,dayscore, color = Academy)) +
+  geom_smooth() +
+  # geom_line() +
+  # theme(legend.position = "none") +
   labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score")  
 
 
