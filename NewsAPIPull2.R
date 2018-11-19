@@ -1,7 +1,7 @@
 apikey<-"b89f391b2d4445e99d0e69f1184a0534"
 
 library(rjson)
-library(jsonlite)
+library(jsonlite) 
 library(dplyr)
 library(sentimentr)
 library(tidyverse)
