@@ -22,7 +22,7 @@ article.df$sentiment <- sent$ave_sentiment * 100
 
 neg.art<-article.df %>% filter(sentiment< -20)
 
-pos.art<-article.df %>% filter(sentiment >10)
+pos.art<-article.df %>% filter(sentiment >10) 
 
 #List of all news agencies writing good things about us
 pos.art$source
