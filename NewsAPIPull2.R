@@ -26,10 +26,10 @@ pos.art<-article.df %>% filter(sentiment >10)
 
 #List of all news agencies writing good things about us
 pos.art$source
-
+pos.art$title
 #List of all news agencies writing negative things about us
 neg.art$source
-
+neg.art$title
 most.pos<-pos.art %>% filter(sentiment==max(sentiment))
 most.neg<-neg.art %>% filter(sentiment==min(sentiment))
 best.art<-most.pos$url
