@@ -5,7 +5,7 @@ library(tidyverse)
 library(tidytext)
 library(lubridate)
 library(igraph)
-library(googlesheets)
+
 # install.packages("rtweet")
 
 # ## whatever name you assigned to your created app
@@ -394,8 +394,15 @@ library(sentimentr)
 
 added2 = added %>%
 mutate(text = iconv(text, "UTF-8", "UTF-8",sub='')) %>%
+  mutate(polaritysent = scores_by$ave_sentiment) %>%
+  select(-lat,-lng,-coords_coords,-bbox_coords,-geo_coords) %>%
+  arrange((polaritysent))
   
 senttest = get_sentences(added2$text)
 scores = sentiment(senttest)
+scores_by = sentiment_by(senttest)
+scores_by$ave_sentiment
 
-nrow(added2)*2
+added %>% select(screenname,time, text) %>%
+  filter(screenname=="ZNEWSNET") %>%
+  select(text)
