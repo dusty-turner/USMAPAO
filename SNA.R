@@ -2,6 +2,7 @@ library(rtweet)
 library(tidyverse)
 library(tidytext)
 library(lubridate)
+library(sentimentr)
 # install.packages("rtweet")
 
 # ## whatever name you assigned to your created app
@@ -25,7 +26,29 @@ myTwitterData <- Authenticate("twitter",
                               apiSecret=secret,
                               accessToken=token,
                               accessTokenSecret=secrettoken) %>%
-  Collect(searchTerm="USMA", numTweets=500, writeToFile=FALSE, verbose=TRUE)
+  Collect(searchTerm='"West Point"', numTweets=500, writeToFile=FALSE, verbose=TRUE)
+
+sent <- sentiment_by(myTwitterData$text)
+
+myTwitterData$sentiment <- sent$ave_sentiment * 100
+
+
+
+neg.tweets<-myTwitterData %>% filter(sentiment< -10)
+
+most.neg<-neg.tweets %>% filter(sentiment==min(sentiment))
+
+extract_sentiment_terms(most.neg$text)
+
+
+pos.tweets<-myTwitterData %>% filter(sentiment >10) 
+
+most.pos<-pos.tweets %>% filter(sentiment==max(sentiment))
+
+pos.that.matter<-pos.tweets %>% filter(favoriteCount>10)
+neg.that.matter<-neg.tweets %>% filter(favoriteCount>10)
+extract_sentiment_terms(most.pos$text)
+
 
 g_twitter_actor <- myTwitterData %>% Create("Actor")
 
