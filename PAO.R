@@ -48,11 +48,14 @@ AFA <- search_tweets(
   '"Air Force Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
 )
 
-# library(leaflet)
-# sum(!is.na(addtothisdf$coords_coords))
-# addtothisdf %>% leaflet() %>% setView(-100, 40, zoom = 4) %>%
-#   addTiles() %>%  # Add default OpenStreetMap map tiles
-#   addMarkers(~lng,~lat,popup = ~as.character(screen_name), label = ~as.character(text), clusterOptions = markerClusterOptions())
+WestPoint %>%
+  filter(!is.na(quoted_followers_count)) %>%
+  as.data.frame() %>%
+  filter(row_number()==c(1:10))
+names(USMA)
+
+
+
 usma <- data_frame(line = 1:length(USMA$text), 
                    text = as.character(USMA$text),
                    screenname = USMA$screen_name,
@@ -114,7 +117,9 @@ usaf <- data_frame(line = 1:length(AFA$text),
                    favoritescount = AFA$favorite_count)
 
 text_df = bind_rows(usma,wp,usna,naval,usaf,usafa) %>%
-  lat_lng() %>% select(-coords)
+  lat_lng(coords = "coords") %>% select(-coords)
+
+
 
 #### START RUNNING AT THIS LINE#######
 
@@ -122,14 +127,33 @@ addtothisdf = read_csv("PAOTweets.csv")
 # for_gs <- gs_title("USMAPAO")
 # addtothisdf <- gs_read(for_gs)
 
-
-added = text_df %>% bind_rows(addtothisdf) %>%
-  distinct(text,time,searchterm, .keep_all = TRUE)
-
+added =
+  text_df %>% bind_rows(addtothisdf) %>%
+  distinct( 
+           text, 
+           # time,
+           screenname, 
+           # searchterm,
+           .keep_all = TRUE)
+  
 # gs_edit_cells(for_gs, ws = "Sheet1", anchor = "A1", input = addtothisdf, byrow = FALSE, trim = TRUE)
 
-
 write.csv(added,"PAOTweets.csv", row.names = FALSE)
+
+
+############# try maps
+
+library(leaflet)
+
+added %>% 
+  filter(!is.na(lat)) %>%
+  leaflet() %>% setView(-100, 40, zoom = 4) %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addMarkers(~lng,~lat,popup = ~as.character(screenname), label = ~as.character(text), clusterOptions = markerClusterOptions())
+
+
+
+############## start doing analysis
 
 
 textcleaned = added %>%
@@ -168,15 +192,17 @@ cleanedarticle %>%
   filter(sentiment=="positive" | sentiment == "negative") %>%
   mutate(time = floor_date(time, unit = "day")) %>%
   mutate(dayofweek = weekdays(time)) %>%
-  filter(as.character(time)=="2018-11-04") %>%
+  # filter(as.character(time)=="2018-11-04") %>%
   arrange(desc(followerscount)) %>%
   group_by(screenname,sentiment) %>%
   mutate(total = n()) %>%
   distinct(screenname,sentiment, followerscount,favoritescount,total) %>%
-  filter(sentiment=="negative") %>%
+  # filter(sentiment=="negative") %>%
+  ungroup() %>%
+  mutate(total = ifelse(sentiment=="negative",total*-1,total)) %>%
   group_by(screenname) %>%
-  summarise(FollowersCount = mean(followerscount), FavoritesCount = max(favoritescount), Total = sum(total)) %>%
-  arrange(desc(FavoritesCount)) 
+  summarise(FollowersCount = max(followerscount), FavoritesCount = max(favoritescount), Total = sum(total), Total_Sentament_Words = sum(abs(total))) %>%
+  arrange(desc(Total)) 
 
 
 added %>%
@@ -363,4 +389,13 @@ adj.mat=get.adjacency(g)%>%
 #calculate eigenvector centrality
 Eigen.Centrality = eigen_centrality(g)
 
+##############
+library(sentimentr)
 
+added2 = added %>%
+mutate(text = iconv(text, "UTF-8", "UTF-8",sub='')) %>%
+  
+senttest = get_sentences(added2$text)
+scores = sentiment(senttest)
+
+nrow(added2)*2

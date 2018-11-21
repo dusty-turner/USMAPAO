@@ -62,6 +62,8 @@ textcleaned = added %>%
 
 cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount, searchterm)
 
+cleanedarticleleaflet = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount, searchterm,lat,lng)
+
 mintime = min(cleanedarticle$time)
 ```
 
@@ -136,18 +138,11 @@ The Favorites Count tallys the total number of favorites among all their tweets 
 ```{r influentialtweets, echo=FALSE}
 library(shiny)
 ui <- fluidPage(
-  # dateInput('dateRange',
-  #   label = 'Select a Date of Interest',
-  #   value = today(),
-  #   min =  mintime,
-  #   max = Sys.Date()
-  # ),
     dateRangeInput('dateRange',
     label = 'Please use the filter below to narrow your search criteria between dates of interest.',
     start = mintime,
     end = Sys.Date()
   ),
-  
     tabsetPanel(type = "tabs",
               tabPanel("Influential Users", 
                        # radioButtons("sent","Sentiment of Interest:",
@@ -157,13 +152,11 @@ ui <- fluidPage(
               tabPanel("Full Tweets", 
                        # tags$h3("Tweets Not Filtered By Sentiment"),
                        dataTableOutput("tweettable2"))
-
-)
-)
+              )
+  )
   
 
 server <- function(input, output) {
-   
   dataset = reactive({
     filtered = 
       cleanedarticle %>%
@@ -190,7 +183,6 @@ server <- function(input, output) {
   arrange(desc(Net_Pos_Words)) 
     return(filtered)
   })
-  
 
   output$tweettable = renderDataTable(dataset(),{
    options = list(pageLength = 10)
@@ -219,6 +211,69 @@ shinyApp(ui = ui, server = server, options = list(height=1200))
 ```
 
 ----
+
+# Sentiment Analysis Polarity (Users and Full Tweets)
+
+The Plot tab below shows the number of words with both positive and negative sentiment by day.
+
+The table tab below shows the words with sentiment by user, time, follower count, and favorite count.  
+
+
+```{r polarity, echo=FALSE}
+library(shiny)
+library(sentimentr)
+ui <- fluidPage(
+  dateRangeInput('dateRange',
+    label = 'Please use the filter below to narrow your search criteria between dates of interest.',
+    start = mintime,
+    end = Sys.Date()),
+  tabsetPanel(type = "tabs",
+              tabPanel("Plot", plotOutput("sentovertime")),
+              tabPanel("Words in Tweets", dataTableOutput("tweettable")
+   )
+  )
+)
+server <- function(input, output) {
+   
+  dataset = reactive({
+    converted = added %>%
+      select(-lat,-lng,-coords_coords,-bbox_coords,-geo_coords) %>%
+      mutate(text = iconv(text, "UTF-8", "UTF-8",sub='')) 
+
+    senttest = get_sentences(converted$text)
+    scores_by = sentiment_by(senttest)
+
+    added2 = converted %>%
+      mutate(polaritysent = scores_by$ave_sentiment) 
+    return(added2)
+  })
+  
+  output$sentovertime = renderPlot({
+    ggplot(dataset(), aes(sentiment, fill = sentiment)) +
+    geom_bar() +
+    facet_wrap(time ~ dayofweek, ncol = 7)
+  })
+  
+  # output$text = renderText({
+  #   this = as.character(input$dateRange)
+  #   this = this[2]
+  #   return(this)
+  # })
+
+  output$tweettable = renderDataTable({
+    return(dataset())
+  })
+  
+}
+
+shinyApp(ui = ui, server = server, options = list(height=600, width = 1200))
+
+```
+
+
+
+----
+
 
 # Social Heartbeat
 
@@ -270,6 +325,38 @@ server <- function(input, output) {
     labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score") +
     ylim(-1,1)
     }
+  })
+  
+}
+
+shinyApp(ui = ui, server = server, options = list(height=800))
+
+```
+
+----
+
+# Where are People Tweeting About USMA
+
+```{r map, echo=FALSE}
+library(shiny)
+library(leaflet)
+library(htmltools)
+ui <- fluidPage(
+leafletOutput("mymap")
+)
+
+
+server <- function(input, output) {
+
+ output$mymap <- renderLeaflet({
+   
+   added %>% 
+  filter(!is.na(lat)) %>%
+  leaflet() %>% setView(-100, 40, zoom = 4) %>%
+  addTiles() %>% # Add default OpenStreetMap map tiles
+  addMarkers(~lng,~lat,popup = ~as.character(screenname), clusterOptions = markerClusterOptions())
+  # addMarkers(~lng,~lat,popup = ~as.character(screenname), label = ~as.character(text), clusterOptions = markerClusterOptions())
+
   })
   
 }
