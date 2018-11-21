@@ -48,9 +48,9 @@ AFA <- search_tweets(
   '"Air Force Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
 )
 
-
-# 
-# rt %>% leaflet() %>% setView(-100, 40, zoom = 4) %>%
+# library(leaflet)
+# sum(!is.na(addtothisdf$coords_coords))
+# addtothisdf %>% leaflet() %>% setView(-100, 40, zoom = 4) %>%
 #   addTiles() %>%  # Add default OpenStreetMap map tiles
 #   addMarkers(~lng,~lat,popup = ~as.character(screen_name), label = ~as.character(text), clusterOptions = markerClusterOptions())
 usma <- data_frame(line = 1:length(USMA$text), 
@@ -118,18 +118,18 @@ text_df = bind_rows(usma,wp,usna,naval,usaf,usafa) %>%
 
 #### START RUNNING AT THIS LINE#######
 
-# addtothisdf = read_csv("PAOTweets.csv")
-for_gs <- gs_title("USMAPAO")
-addtothisdf <- gs_read(for_gs)
+addtothisdf = read_csv("PAOTweets.csv")
+# for_gs <- gs_title("USMAPAO")
+# addtothisdf <- gs_read(for_gs)
 
 
 added = text_df %>% bind_rows(addtothisdf) %>%
   distinct(text,time,searchterm, .keep_all = TRUE)
 
-gs_edit_cells(for_gs, ws = "Sheet1", anchor = "A1", input = addtothisdf, byrow = FALSE, trim = TRUE)
+# gs_edit_cells(for_gs, ws = "Sheet1", anchor = "A1", input = addtothisdf, byrow = FALSE, trim = TRUE)
 
 
-# write.csv(added,"PAOTweets.csv", row.names = FALSE)
+write.csv(added,"PAOTweets.csv", row.names = FALSE)
 
 
 textcleaned = added %>%
@@ -287,7 +287,7 @@ cleanedarticle %>%
   ggplot(aes(time,dayscore, color = Academy)) +
   geom_smooth() +
   # geom_line() +
-  # theme(legend.position = "none") +
+  theme(legend.position = "bottom") +
   labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score")  
 
 

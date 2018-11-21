@@ -1,7 +1,7 @@
 ---
 title: "USMAPAO"
 author: "D/Math LTC Clark, MAJ Turner, CPT Adams"
-date: "November 9, 2018"
+date: "`r format(Sys.time(), '%d %B %Y')`"
 output: 
   html_document:
     theme: united
@@ -67,7 +67,7 @@ mintime = min(cleanedarticle$time)
 
 ----
 
-# Sentiment by Day
+# Sentiment Analysis (Users and Words)
 
 The Plot tab below shows the number of words with both positive and negative sentiment by day.
 
@@ -83,7 +83,7 @@ ui <- fluidPage(
     end = Sys.Date()),
   tabsetPanel(type = "tabs",
               tabPanel("Plot", plotOutput("sentovertime")),
-              tabPanel("Tweets", dataTableOutput("tweettable")
+              tabPanel("Words in Tweets", dataTableOutput("tweettable")
    )
   )
 )
@@ -92,6 +92,7 @@ server <- function(input, output) {
   dataset = reactive({
     filtered = cleanedarticle %>%
     full_join(get_sentiments("nrc"), by = "word") %>%
+    filter(searchterm == "USMA" | searchterm == "WestPoint") %>%
     # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
     filter(complete.cases(.)) %>%
     filter(sentiment == "positive" | sentiment == "negative") %>%
@@ -126,7 +127,11 @@ shinyApp(ui = ui, server = server, options = list(height=600))
 
 ----
 
-# Tweets and Twitter Users of Most Influence
+# Sentiment Analysis (Users and Tweets)
+
+During the selected time period, the following users "netted" the following amounts of sentiment in their words throughout all their tweets.  
+
+The Favorites Count tallys the total number of favorites among all their tweets during this time period.  
 
 ```{r influentialtweets, echo=FALSE}
 library(shiny)
@@ -145,12 +150,12 @@ ui <- fluidPage(
   
     tabsetPanel(type = "tabs",
               tabPanel("Influential Users", 
-                       radioButtons("sent","Sentiment of Interest:",
-                         choices = c("Positive" = "positive","Negative" = "negative")
-                         ),
+                       # radioButtons("sent","Sentiment of Interest:",
+                       #   choices = c("Positive" = "positive","Negative" = "negative")
+                       #   ),
                        dataTableOutput("tweettable")), 
               tabPanel("Full Tweets", 
-                       tags$h3("Tweets Not Filtered By Sentiment"),
+                       # tags$h3("Tweets Not Filtered By Sentiment"),
                        dataTableOutput("tweettable2"))
 
 )
@@ -166,19 +171,23 @@ server <- function(input, output) {
   # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
   filter(complete.cases(.)) %>%
   filter(sentiment=="positive" | sentiment == "negative") %>%
+  filter(searchterm == "USMA" | searchterm == "WestPoint") %>%
   mutate(time = floor_date(time, unit = "day")) %>%
   mutate(dayofweek = weekdays(time)) %>%
-  # filter(as.character(time)==input$dateRange) %>%
   filter(time <= input$dateRange[2]) %>%
   filter(time >= input$dateRange[1]) %>%
   arrange(desc(followerscount)) %>%
   group_by(screenname,sentiment) %>%
   mutate(total = n()) %>%
   distinct(screenname,sentiment, followerscount,favoritescount,total) %>%
-  filter(sentiment==input$sent) %>%
+  # filter(sentiment==input$sent) %>%
+  ungroup() %>%
+  mutate(total = ifelse(sentiment=="negative",total*-1,total)) %>%
   group_by(screenname) %>%
-  summarise(FollowersCount = max(followerscount), FavoritesCount = max(favoritescount), Total = sum(total)) %>%
-  arrange(desc(FavoritesCount))
+  summarise(FollowersCount = max(followerscount), 
+            FavoritesCount = sum(favoritescount), 
+            Net_Pos_Words = sum(total), Total_Sentament_Words = sum(abs(total))) %>%
+  arrange(desc(Net_Pos_Words)) 
     return(filtered)
   })
   
@@ -250,14 +259,14 @@ server <- function(input, output) {
     ggplot(aes(time, dayscore, color = Academy)) +
     geom_line() +
     # geom_smooth() +
-    theme(legend.position = "none") +
+    theme(legend.position = "bottom") +
     labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score") +
     ylim(-1,1)
     } else if (input$option == "smooth") {
     dataset() %>%
     ggplot(aes(time, dayscore, color = Academy)) +
-    geom_smooth() +
-    theme(legend.position = "none") +
+    geom_smooth(span = .3) +
+    theme(legend.position = "bottom") +
     labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score") +
     ylim(-1,1)
     }
