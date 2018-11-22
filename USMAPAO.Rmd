@@ -18,39 +18,6 @@ knitr::opts_chunk$set(echo = TRUE)
 options(scipen = 999)
 ```
 
-# Overview
-
-The following analysis is provided to the USMA PAO on behalf of the CDAS in the Department of MAthematical Sciences.  The purpose is to gain insight into the social media landscape surrounding the the United States Military Academy at West Point.
-
-----
-
-# Download Most Recent Tweets
-
-```{r gettweets, echo=FALSE}
-library(shiny)
-ui <- fluidPage(
-  tags$h3("Functionality Currently Not Working"),
-  tags$head(tags$script(src = "message-handler.js")),
-  actionButton("do", "Update Tweets")
-)
-
-server <- function(input, output, session) {
-  observeEvent(input$do, {
-    session$sendCustomMessage(type = 'testmessage',
-      message = 'Thank you for clicking')
-  })
-  observeEvent(input$do, {
-    data = tibble(x=rnorm(100),y=rnorm(100))
-    write.csv(data,"testing.csv")
-  })
-}
-
-shinyApp(ui = ui, server = server, options = list(height=100))
-
-```
-
-----
-
 ```{r include=FALSE}
 library(tidyverse)
 library(tidytext)
@@ -66,6 +33,102 @@ cleanedarticleleaflet = anti_join(textcleaned,stop_words, by = "word") %>% selec
 
 mintime = min(cleanedarticle$time)
 ```
+
+# Overview
+
+The following analysis is provided to the USMA PAO on behalf of the CDAS in the Department of MAthematical Sciences.  The purpose is to gain insight into the social media landscape surrounding the the United States Military Academy at West Point.
+
+----
+
+# Today's Snapshot
+
+Today is `r format(Sys.time(), '%d %B %Y')` 
+
+The Twitter sentiment over the last 7 days is:
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(sentimentr)
+ converted = added %>%
+      select(-lat,-lng,-coords_coords,-bbox_coords,-geo_coords) %>%
+      mutate(text = iconv(text, "UTF-8", "UTF-8",sub='')) 
+
+    senttest = get_sentences(converted$text)
+    scores_by = sentiment_by(senttest)
+
+workingdata = converted %>%
+    mutate(polaritysent = scores_by$ave_sentiment) %>%
+   filter(time <= Sys.Date()) %>%
+   filter(time >= Sys.Date()-6) %>%
+   mutate(search = ifelse(searchterm=="USMA" | searchterm=="WestPoint", "WestPoint",
+                   ifelse(searchterm=="USNA"|searchterm=="Naval Academy", "USNA", "USAFA"))) %>%
+   filter(search == "WestPoint") %>%
+   select(-location, -search, -searchterm, -line) %>%
+   mutate(time = round_date(time, unit = "day")) %>%
+   mutate(dayofweek = date(time)) %>%
+   mutate(influencescore = favoritescount*polaritysent)  
+
+dailysentscore = workingdata %>%
+   group_by(dayofweek) %>%
+   summarise(AverageDailySentiment = average_downweighted_zero(polaritysent)) %>%
+   mutate(AverageDailySentiment = round(AverageDailySentiment,4))
+
+dailysentscore = t(dailysentscore)
+colnames(dailysentscore) = dailysentscore[1,]
+dailysentscore = dailysentscore[-1,]
+
+InfluencialTweets = workingdata %>%
+  filter(dayofweek == today()) %>%
+  top_n(3,influencescore) %>%
+  bind_rows(
+    workingdata %>%
+      filter(dayofweek >= today()-1) %>%
+      top_n(-3,influencescore)
+  ) %>%
+  select(screenname,text,followerscount,favoritescount,polaritysent,influencescore)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+kable(t(dailysentscore)) %>% kable_styling()
+```
+
+The most influencial tweets of the last 24 hours are:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+kable(InfluencialTweets) %>% kable_styling(font_size = 10)  
+```
+
+
+
+<!-- # Download Most Recent Tweets -->
+
+<!-- ```{r gettweets, echo=FALSE} -->
+<!-- library(shiny) -->
+<!-- ui <- fluidPage( -->
+<!--   tags$h3("Functionality Currently Not Working"), -->
+<!--   tags$head(tags$script(src = "message-handler.js")), -->
+<!--   actionButton("do", "Update Tweets") -->
+<!-- ) -->
+
+<!-- server <- function(input, output, session) { -->
+<!--   observeEvent(input$do, { -->
+<!--     session$sendCustomMessage(type = 'testmessage', -->
+<!--       message = 'Thank you for clicking') -->
+<!--   }) -->
+<!--   observeEvent(input$do, { -->
+<!--     data = tibble(x=rnorm(100),y=rnorm(100)) -->
+<!--     write.csv(data,"testing.csv") -->
+<!--   }) -->
+<!-- } -->
+
+<!-- shinyApp(ui = ui, server = server, options = list(height=100)) -->
+
+<!-- ``` -->
+
+<!-- ---- -->
+
+
 
 ----
 
@@ -143,11 +206,16 @@ ui <- fluidPage(
     start = mintime,
     end = Sys.Date()
   ),
+    checkboxGroupInput("checkGroup", 
+        label = h3("Select The Academies You Would Like to Search"), 
+        choices = list("West Point" = "WestPoint", "Navy" = "USNA", "Air Force" = "USAFA"),
+        selected = "WestPoint"),
     tabsetPanel(type = "tabs",
               tabPanel("Influential Users", 
                        # radioButtons("sent","Sentiment of Interest:",
                        #   choices = c("Positive" = "positive","Negative" = "negative")
                        #   ),
+                       verbatimTextOutput("check"),
                        dataTableOutput("tweettable")), 
               tabPanel("Full Tweets", 
                        # tags$h3("Tweets Not Filtered By Sentiment"),
@@ -164,7 +232,10 @@ server <- function(input, output) {
   # select(-c(location,lat,lng,coords_coords,bbox_coords,geo_coords)) %>%
   filter(complete.cases(.)) %>%
   filter(sentiment=="positive" | sentiment == "negative") %>%
-  filter(searchterm == "USMA" | searchterm == "WestPoint") %>%
+  mutate(search = ifelse(searchterm=="USMA" | searchterm=="WestPoint", "WestPoint",
+                  ifelse(searchterm=="USNA"|searchterm=="Naval Academy", "USNA", "USAFA"))) %>%
+  filter(search == input$checkGroup[1] |search == input$checkGroup[2] | search == input$checkGroup[3]) %>%
+  # filter(searchterm == "USMA" | searchterm == "WestPoint") %>%
   mutate(time = floor_date(time, unit = "day")) %>%
   mutate(dayofweek = weekdays(time)) %>%
   filter(time <= input$dateRange[2]) %>%
@@ -172,14 +243,15 @@ server <- function(input, output) {
   arrange(desc(followerscount)) %>%
   group_by(screenname,sentiment) %>%
   mutate(total = n()) %>%
-  distinct(screenname,sentiment, followerscount,favoritescount,total) %>%
+  distinct(screenname,sentiment, followerscount,favoritescount,total, .keep_all = TRUE) %>%
   # filter(sentiment==input$sent) %>%
   ungroup() %>%
   mutate(total = ifelse(sentiment=="negative",total*-1,total)) %>%
   group_by(screenname) %>%
   summarise(FollowersCount = max(followerscount), 
             FavoritesCount = sum(favoritescount), 
-            Net_Pos_Words = sum(total), Total_Sentament_Words = sum(abs(total))) %>%
+            Net_Pos_Words = sum(total), 
+            Total_Sentament_Words = sum(abs(total))) %>%
   arrange(desc(Net_Pos_Words)) 
     return(filtered)
   })
@@ -194,7 +266,10 @@ server <- function(input, output) {
     mutate(dayofweek = weekdays(time)) %>%
     filter(time <= input$dateRange[2]) %>%
     filter(time >= input$dateRange[1]) %>%
-      select(screenname, text, time)
+    mutate(search = ifelse(searchterm=="USMA" | searchterm=="WestPoint", "WestPoint",
+                  ifelse(searchterm=="USNA"|searchterm=="Naval Academy", "USNA", "USAFA"))) %>%
+    filter(search == input$checkGroup[1] |search == input$checkGroup[2] | search == input$checkGroup[3]) %>%
+    select(screenname, text, time)
     return(filtered)
   })
   
@@ -203,6 +278,9 @@ server <- function(input, output) {
    options = list(pageLength = 10)
   })
   
+  # output$check = renderText(
+  #   return(input$checkGroup[2])
+  # )
    
 }
 
@@ -219,17 +297,28 @@ The Plot tab below shows the number of words with both positive and negative sen
 The table tab below shows the words with sentiment by user, time, follower count, and favorite count.  
 
 
-```{r polarity, echo=FALSE}
+```{r polarity, echo=FALSE, message=FALSE, warning=FALSE}
 library(shiny)
 library(sentimentr)
+library(scales)
+library(lubridate)
 ui <- fluidPage(
   dateRangeInput('dateRange',
     label = 'Please use the filter below to narrow your search criteria between dates of interest.',
-    start = mintime,
+    start = Sys.Date()-days(7),
     end = Sys.Date()),
+  # checkboxGroupInput("checkGroup", 
+  #   label = h3("Select The Academies You Would Like to Search"), 
+  #   choices = list("West Point" = "WestPoint", "Navy" = "USNA", "Air Force" = "USAFA"),
+  #   selected = "WestPoint"),
   tabsetPanel(type = "tabs",
               tabPanel("Plot", plotOutput("sentovertime")),
-              tabPanel("Words in Tweets", dataTableOutput("tweettable")
+              tabPanel("Words in Tweets", 
+                         checkboxGroupInput("checkGroup", 
+    label = h3("Select The Academies You Would Like to Search"), 
+    choices = list("West Point" = "WestPoint", "Navy" = "USNA", "Air Force" = "USAFA"),
+    selected = "WestPoint"),
+                       dataTableOutput("tweettable")
    )
   )
 )
@@ -247,11 +336,45 @@ server <- function(input, output) {
       mutate(polaritysent = scores_by$ave_sentiment) 
     return(added2)
   })
+
+  dataset2 = reactive({
+    added2 = dataset() %>%
+      filter(time <= input$dateRange[2]) %>%
+      filter(time >= input$dateRange[1]) %>%
+      mutate(search = ifelse(searchterm=="USMA" | searchterm=="WestPoint", "WestPoint",
+                      ifelse(searchterm=="USNA"|searchterm=="Naval Academy", "USNA", "USAFA"))) %>%
+      filter(search == input$checkGroup[1] |search == input$checkGroup[2] | search == input$checkGroup[3]) %>%
+      select(-location, -search)
+    return(added2)
+  })
+
+  dataset3 = reactive({
+    added2 = dataset() %>%
+      filter(time <= input$dateRange[2]) %>%
+      filter(time >= input$dateRange[1]) %>%
+      mutate(filterday = date(time)) %>%
+      mutate(searchterm = ifelse(searchterm=="USMA" | searchterm=="WestPoint", "West Point",
+                         ifelse(searchterm=="USNA"|searchterm=="Naval Academy", "Navy", "Air Force"))) %>%
+      mutate(hour = hour(time)*60+minute(time)) %>%
+      mutate(dayofweek = weekdays(time)) %>%
+      filter(favoritescount>0) %>%
+      filter(followerscount>0) %>%
+      filter(polaritysent!=0)
+      # select(-location, -search)
+    return(added2)
+  })
   
+
   output$sentovertime = renderPlot({
-    ggplot(dataset(), aes(sentiment, fill = sentiment)) +
-    geom_bar() +
-    facet_wrap(time ~ dayofweek, ncol = 7)
+    dataset3() %>%
+  ggplot(aes(x=time,y = polaritysent, color = fct_rev(searchterm))) +
+  geom_point(aes(size = favoritescount, fill = fct_rev(searchterm),alpha = polaritysent), shape = 21) +
+  scale_fill_manual(values = c("Black", "Yellow", "Blue")) +
+  scale_color_manual(values = c("Black", "Blue", "White"), guide = "none") +
+  scale_alpha(guide = "none") +
+  scale_x_datetime(labels = date_format("%d %b %Y"),
+                   date_breaks = "1 day") +
+  labs(x="Time",y="Polarity Sentiment", size = "Favorites Count", fill = "University", title = "Polarity Sentiment over Time by University")
   })
   
   # output$text = renderText({
@@ -261,12 +384,13 @@ server <- function(input, output) {
   # })
 
   output$tweettable = renderDataTable({
-    return(dataset())
+    return(dataset2() %>% select(-searchterm))
   })
   
 }
 
-shinyApp(ui = ui, server = server, options = list(height=600, width = 1200))
+shinyApp(ui = ui, server = server, options = list(height=600))
+# shinyApp(ui = ui, server = server, options = list(height=600, width = 1200))
 
 ```
 
