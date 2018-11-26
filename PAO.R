@@ -26,8 +26,6 @@ twitter_token <- create_token(
   consumer_key = key,
   consumer_secret = secret)
 
-??create_token
-
 USMA <- search_tweets(
   "USMA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
 )
@@ -130,16 +128,18 @@ addtothisdf = read_csv("PAOTweets.csv")
 added =
   text_df %>% bind_rows(addtothisdf) %>%
   distinct( 
-           text, 
-           # time,
+           # text, 
+           time,
            screenname, 
            # searchterm,
            .keep_all = TRUE)
-  
+
+
 # gs_edit_cells(for_gs, ws = "Sheet1", anchor = "A1", input = addtothisdf, byrow = FALSE, trim = TRUE)
 
 write.csv(added,"PAOTweets.csv", row.names = FALSE)
-
+# write.csv(addtothisdf,"PAOTweetsbackup.csv", row.names = FALSE)
+unique(added$searchterm)
 
 ############# try maps
 
@@ -393,16 +393,71 @@ Eigen.Centrality = eigen_centrality(g)
 library(sentimentr)
 
 added2 = added %>%
-mutate(text = iconv(text, "UTF-8", "UTF-8",sub='')) %>%
-  mutate(polaritysent = scores_by$ave_sentiment) %>%
-  select(-lat,-lng,-coords_coords,-bbox_coords,-geo_coords) %>%
-  arrange((polaritysent))
-  
-senttest = get_sentences(added2$text)
-scores = sentiment(senttest)
-scores_by = sentiment_by(senttest)
-scores_by$ave_sentiment
+mutate(text = iconv(text, "UTF-8", "UTF-8",sub='')) 
 
-added %>% select(screenname,time, text) %>%
-  filter(screenname=="ZNEWSNET") %>%
-  select(text)
+senttest = get_sentences(added2$text)
+scores_by = sentiment_by(senttest)
+
+added3 = added2 %>%
+  mutate(polaritysent = scores_by$ave_sentiment) %>%
+  select(-lat,-lng,-coords_coords,-bbox_coords,-geo_coords) 
+  # arrange((polaritysent))
+
+added3 %>% select(-line,-location) %>%
+  mutate(time = floor_date(time, unit = "day")) %>%
+  mutate(day = day(time)) %>%
+  mutate(week = week(time)) %>%
+  group_by(day) %>%
+  mutate(MeanSentiment = mean(polaritysent)) %>%
+  ggplot(aes(x=time, y = polaritysent, group = day)) +
+  # geom_point() +
+  # geom_boxplot() +
+  geom_violin(aes(fill = MeanSentiment)) +
+  # geom_jitter(aes(y=polaritysent, color = polaritysent), width = 1) +
+  facet_wrap(~week, scales = "free_x")
+
+library(scales)
+
+added3 %>% select(-line,-location) %>%
+  mutate(filterday = date(time)) %>%
+  filter(time <= today()) %>%
+  filter(time >= today()-days(3)) %>%
+  mutate(searchterm = ifelse(searchterm=="USMA" | searchterm=="WestPoint", "West Point",
+                         ifelse(searchterm=="USNA"|searchterm=="Naval Academy", "Navy", "Air Force"))) %>%
+  mutate(hour = hour(time)*60+minute(time)) %>%
+  mutate(dayofweek = weekdays(time)) %>%
+  filter(favoritescount>0) %>%
+  filter(followerscount>0) %>%
+  filter(polaritysent!=0) %>%
+  ggplot(aes(x=time,y = polaritysent, color = fct_rev(searchterm))) +
+  geom_point(aes(size = favoritescount, fill = fct_rev(searchterm),alpha = polaritysent), shape = 21) +
+  scale_fill_manual(values = c("Black", "Yellow", "Blue")) +
+  scale_color_manual(values = c("Black", "Blue", "White"), guide = "none") +
+  scale_alpha(guide = "none") +
+  scale_x_datetime(labels = date_format("%d %b %Y"),
+                   date_breaks = "1 day") +
+  labs(x="Time",y="Polarity Sentiment", size = "Favorites Count", fill = "University", title = "Polarity Sentiment over Time by University")
+
+  
+library(sparkline)
+sparkline(added3$polaritysent)
+
+plot(added3$polaritysent, transformation.function = syuzhet::get_dct_transform)
+
+# library(YaleToolkit)
+# data(YaleEnergy)
+# y <- YaleEnergy[YaleEnergy$name==YaleEnergy$name[2],]
+# sparkline(y$ELSQFT, times=y$year+y$month/12,
+#           xaxis=TRUE, yaxis=TRUE, main="Branford College Electrical Consumption",
+#           buffer=unit(1, "lines"), margins = unit(c(1, 1, 1, 1), 'inches'))
+# 
+# sparkline(Nile,
+#           buffer = unit(1, "lines"),
+#           ptopts = list(labels = 'min.max'),
+#           margin.pars = gpar(fill = 'lightblue'),
+#           buffer.pars = gpar(fill = 'lightgreen'),
+#           frame.pars = gpar(fill = 'lightyellow'),
+#           yaxis = TRUE, xaxis=TRUE,
+#           IQR = gpar(fill = 'grey', col = 'grey'),
+#           main="Nile Discharge between 1871 and 1970",
+#           sub='In what units?')
