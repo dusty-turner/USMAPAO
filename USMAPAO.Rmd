@@ -45,7 +45,7 @@ The following analysis is provided to the USMA PAO on behalf of the CDAS in the 
 
 Today is `r format(Sys.time(), '%d %B %Y')` 
 
-The Twitter sentiment over the last 7 days is:
+The Average Twitter sentiment over the last 7 days is:
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(sentimentr)
@@ -88,6 +88,40 @@ InfluencialTweets = workingdata %>%
   select(screenname,text,followerscount,favoritescount,polaritysent,influencescore)
 ```
 
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+apikey<-"b89f391b2d4445e99d0e69f1184a0534"
+
+library(rjson)
+library(jsonlite) 
+library(dplyr)
+library(sentimentr)
+library(tidyverse)
+library(XML)
+library(rvest)
+#Enter Search Term 
+term<-'"West+Point"'  #Include Branch Night
+key<-apikey
+curr.date<-format(Sys.time(), '%Y-%m-%d')
+USMA.JSON<-fromJSON(paste0("https://newsapi.org/v2/everything?q=",term,"&from=",curr.date,"&apiKey=",key,sep=""))
+article.df<-USMA.JSON$articles
+article.df$source<-article.df$source$name
+#Classify sentiment of Articles
+sent <- sentiment_by(article.df$content
+)
+article.df$sentiment <- sent$ave_sentiment * 100
+
+neg.art<-article.df %>% filter(sentiment< -10)
+
+pos.art<-article.df %>% filter(sentiment >10) 
+
+#List of all news agencies writing good things about us
+#pos.art$source
+#pos.art$title
+urls<-data.frame(URL=pos.art$url)
+urls.neg<-data.frame(URL=neg.art$url)
+```
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(kableExtra)
 kable(t(dailysentscore)) %>% kable_styling()
@@ -100,6 +134,16 @@ library(kableExtra)
 kable(InfluencialTweets) %>% kable_styling(font_size = 10)  
 ```
 
+**Some News articles that mention West Point in a potentially positive light are:**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+kable(urls) %>% kable_styling(font_size = 10)  
+```
+**Some News articles that mention West Point in a potentially negative light are:**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+kable(urls.neg) %>% kable_styling(font_size = 10)  
+```
 
 
 <!-- # Download Most Recent Tweets -->
