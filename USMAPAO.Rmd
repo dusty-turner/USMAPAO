@@ -22,7 +22,8 @@ options(scipen = 999)
 library(tidyverse)
 library(tidytext)
 library(lubridate)
-added = read_csv("PAOTweets.csv")
+added = read_csv("PAOTweets.csv") %>%
+  filter(screenname != "Usma_cielo")
 
 textcleaned = added %>%
   unnest_tokens(word, text)
