@@ -22,8 +22,15 @@ options(scipen = 999)
 library(tidyverse)
 library(tidytext)
 library(lubridate)
+library(googlesheets)
 added = read_csv("PAOTweets.csv") %>%
   filter(screenname != "Usma_cielo")
+
+# my_sheets <- gs_ls()
+# USMAPAO = gs_title("USMAPAO")
+# added = gs_read(USMAPAO) %>%
+#   filter(screenname != "Usma_cielo") %>%
+#   mutate(time = mdy_hms(time))
 
 textcleaned = added %>%
   unnest_tokens(word, text)
@@ -32,7 +39,8 @@ cleanedarticle = anti_join(textcleaned,stop_words, by = "word") %>% select(line,
 
 cleanedarticleleaflet = anti_join(textcleaned,stop_words, by = "word") %>% select(line,word,screenname,time,followerscount,favoritescount, searchterm,lat,lng)
 
-mintime = min(cleanedarticle$time)
+# mintime = min(cleanedarticle$time, na.rm = TRUE)
+mintime = Sys.time()-days(14)
 ```
 
 # Overview
@@ -51,7 +59,7 @@ The Average Twitter sentiment over the last 7 days is:
 library(sentimentr)
  converted = added %>%
       select(-lat,-lng,-coords_coords,-bbox_coords,-geo_coords) %>%
-      mutate(text = iconv(text, "UTF-8", "UTF-8",sub='')) 
+      mutate(text = iconv(text, "UTF-8", "UTF-8",sub=''))
 
     senttest = get_sentences(converted$text)
     scores_by = sentiment_by(senttest)
@@ -66,7 +74,7 @@ workingdata = converted %>%
    select(-location, -search, -searchterm, -line) %>%
    mutate(time = round_date(time, unit = "day")) %>%
    mutate(dayofweek = date(time)) %>%
-   mutate(influencescore = favoritescount*polaritysent)  
+   mutate(influencescore = favoritescount*polaritysent)
 
 dailysentscore = workingdata %>%
    group_by(dayofweek) %>%
@@ -107,8 +115,8 @@ USMA.JSON<-fromJSON(paste0("https://newsapi.org/v2/everything?q=",term,"&from=",
 article.df<-USMA.JSON$articles
 article.df$source<-article.df$source$name
 #Classify sentiment of Articles
-sent <- sentiment_by(article.df$content
-)
+sent <- sentiment_by(article.df$content)
+
 article.df$sentiment <- sent$ave_sentiment * 100
 
 neg.art<-article.df %>% filter(sentiment< -10)
