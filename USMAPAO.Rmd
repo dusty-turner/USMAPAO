@@ -117,6 +117,8 @@ article.df$source<-article.df$source$name
 #Classify sentiment of Articles
 sent <- sentiment_by(article.df$content)
 
+
+
 article.df$sentiment <- sent$ave_sentiment * 100
 
 neg.art<-article.df %>% filter(sentiment< -10)
@@ -355,6 +357,7 @@ library(shiny)
 library(sentimentr)
 library(scales)
 library(lubridate)
+library(plotly)
 ui <- fluidPage(
   dateRangeInput('dateRange',
     label = 'Please use the filter below to narrow your search criteria between dates of interest.',
@@ -365,7 +368,9 @@ ui <- fluidPage(
   #   choices = list("West Point" = "WestPoint", "Navy" = "USNA", "Air Force" = "USAFA"),
   #   selected = "WestPoint"),
   tabsetPanel(type = "tabs",
-              tabPanel("Plot", plotOutput("sentovertime")),
+              tabPanel("Plot", 
+                       plotlyOutput("sentovertime")),
+                       # plotOutput("sentovertime")),
               tabPanel("Words in Tweets", 
                          checkboxGroupInput("checkGroup", 
     label = h3("Select The Academies You Would Like to Search"), 
@@ -418,16 +423,19 @@ server <- function(input, output) {
   })
   
 
-  output$sentovertime = renderPlot({
-    dataset3() %>%
+  # output$sentovertime = renderPlot({
+  output$sentovertime = renderPlotly({
+  p =  dataset3() %>%
   ggplot(aes(x=time,y = polaritysent, color = fct_rev(searchterm))) +
-  geom_point(aes(size = favoritescount, fill = fct_rev(searchterm),alpha = polaritysent), shape = 21) +
+  geom_point(aes(size = favoritescount, fill = fct_rev(searchterm),alpha = polaritysent), shape = 21, text = ~text) +
   scale_fill_manual(values = c("Black", "Yellow", "Blue")) +
   scale_color_manual(values = c("Black", "Blue", "White"), guide = "none") +
   scale_alpha(guide = "none") +
   scale_x_datetime(labels = date_format("%d %b %Y"),
                    date_breaks = "1 day") +
   labs(x="Time",y="Polarity Sentiment", size = "Favorites Count", fill = "University", title = "Polarity Sentiment over Time by University")
+  p = ggplotly(p)
+  return(p)
   })
   
   # output$text = renderText({
