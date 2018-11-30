@@ -3,9 +3,11 @@ library(lubridate)
 #library(googlesheets)
 library(rtweet)
 
-Twitter_tok<-readRDS("C:/Users/Nicholas/.rtweet_token1.rds") #Locate where your twitter token is stored
+# Twitter_tok<-readRDS("C:/Users/Nicholas/.rtweet_token1.rds") #Locate where your twitter token is stored
+Twitter_tok<-readRDS("C:/Users/Dusty.Turner/Desktop/R Work/USMAPAO/.rtweet_token1.rds") #Locate where your twitter token is stored
 
-setwd("C:/Users/Nicholas/USMAPAO")
+# setwd("C:/Users/Nicholas/USMAPAO")
+setwd("C:/Users/Dusty.Turner/Desktop/R Work/USMAPAO")
 
 df = data.frame(Sys.time())
 write.csv(df,"junk1.csv")

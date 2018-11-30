@@ -5,8 +5,8 @@ account: dustyturner
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 563263
-bundleId: 1727357
+bundleId: 1731318
 url: https://dustyturner.shinyapps.io/USMAPAO/
-when: 1543455500.31647
+when: 1543588935.72805
 asMultiple: FALSE
 asStatic: FALSE
