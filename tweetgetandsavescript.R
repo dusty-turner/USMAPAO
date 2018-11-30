@@ -2,8 +2,9 @@ library(tidyverse)
 library(lubridate)
 library(googlesheets)
 library(rtweet)
+library(rsconnect)
 
-twit_path="C:/Users/Dusty.Turner/Documents/.rtweet_token.rds"
+# twit_path="C:/Users/Dusty.Turner/Documents/.rtweet_token.rds"
 # Twitter_tok<-readRDS("C:/Users/Nicholas/.rtweet_token1.rds") #Locate where your twitter token is stored
 Twitter_tok<-readRDS(twit_path) #Locate where your twitter token is stored
 
@@ -131,3 +132,5 @@ write.csv(added,"PAOTweets1.csv", row.names = FALSE)
 
 df = data.frame(Sys.time())
 write.csv(df,"junk.csv")
+
+deployApp()
