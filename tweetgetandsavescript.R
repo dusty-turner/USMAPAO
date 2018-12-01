@@ -2,31 +2,35 @@ library(tidyverse)
 library(lubridate)
 library(googlesheets)
 library(rtweet)
+library(rsconnect)
 
+# twit_path="C:/Users/Dusty.Turner/Documents/.rtweet_token.rds"
+# Twitter_tok<-readRDS("C:/Users/Nicholas/.rtweet_token1.rds") #Locate where your twitter token is stored
+Twitter_tok<-readRDS(twit_path) #Locate where your twitter token is stored
+
+# setwd("C:/Users/Nicholas/USMAPAO")
 setwd("C:/Users/Dusty.Turner/Desktop/R Work/USMAPAO")
 
 df = data.frame(Sys.time())
 write.csv(df,"junk1.csv")
 
 USMA <- search_tweets(
-  "USMA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
-)
+  "USMA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE,token=Twitter_tok) #Manually call the token
+
 WestPoint <- search_tweets(
-  '"West Point"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
-)
+  '"West Point"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE,token=Twitter_tok) #Manually call the token
 
 USNA <- search_tweets(
-  "USNA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
-)
+  "USNA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE,token=Twitter_tok) #Manually call the token
+
 USNavalA <- search_tweets(
-  '"Naval Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
-)
+  '"Naval Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE,token=Twitter_tok) #Manually call the token
+
 USAFA <- search_tweets(
-  "USAFA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
-)
+  "USAFA", n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE,token=Twitter_tok) #Manually call the token
+
 AFA <- search_tweets(
-  '"Air Force Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE
-)
+  '"Air Force Academy"', n = 18000/2, include_rts = FALSE, retryonratelimit = FALSE,token=Twitter_tok) #Manually call the token
 
 usma <- data_frame(line = 1:length(USMA$text),
                    text = as.character(USMA$text),
@@ -100,7 +104,9 @@ text_df = bind_rows(usma,wp,usna,naval,usaf,usafa) %>%
 addtothisdf = read_csv("PAOTweets.csv")
 
 # newtweets =
-# gsdata %>% mutate(time = mdy_hms(time)) %>% mutate(df = "old") %>% bind_rows(text_df %>% mutate(df = "new")) %>%
+# addtothisdf %>% 
+#   # mutate(time = mdy_hms(time)) %>% 
+#   mutate(df = "old") %>% bind_rows(text_df %>% mutate(df = "new")) %>%
 #   distinct(
 #     # text,
 #     time,
@@ -110,7 +116,9 @@ addtothisdf = read_csv("PAOTweets.csv")
 
 
 added =
-addtothisdf %>% mutate(time = mdy_hms(time)) %>% bind_rows(text_df) %>%
+addtothisdf %>% 
+  # mutate(time = mdy_hms(time)) %>% 
+  bind_rows(text_df) %>%
   distinct(
     # text,
     time,
@@ -118,9 +126,11 @@ addtothisdf %>% mutate(time = mdy_hms(time)) %>% bind_rows(text_df) %>%
     # searchterm,
     .keep_all = TRUE)
 
-write.csv(added,"PAOTweets.csv", row.names = FALSE)
+write.csv(added,"PAOTweets1.csv", row.names = FALSE)
 
 # gs_add_row(ss = USMAPAO, ws = "Sheet1", input = newtweets)
 
 df = data.frame(Sys.time())
 write.csv(df,"junk.csv")
+
+deployApp()
