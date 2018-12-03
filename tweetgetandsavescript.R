@@ -126,7 +126,7 @@ addtothisdf %>%
     # searchterm,
     .keep_all = TRUE)
 
-write.csv(added,"PAOTweets1.csv", row.names = FALSE)
+write.csv(added,"PAOTweets.csv", row.names = FALSE)
 
 # gs_add_row(ss = USMAPAO, ws = "Sheet1", input = newtweets)
 

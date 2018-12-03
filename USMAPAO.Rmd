@@ -550,8 +550,13 @@ server <- function(input, output) {
   
 }
 
-shinyApp(ui = ui, server = server, options = list(height=800))
+shinyApp(ui = ui, server = server, options = list(height=500))
 
 ```
 
 ----
+
+### Acknowledgements
+
+Special thanks to @[kearneymw](https://twitter.com/kearneymw?lang=en) for the great R Package to extract this information.  
+
