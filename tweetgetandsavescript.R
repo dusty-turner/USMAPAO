@@ -133,4 +133,13 @@ write.csv(added,"PAOTweets.csv", row.names = FALSE)
 df = data.frame(Sys.time())
 write.csv(df,"junk.csv")
 
-deployApp()
+#Need to go into app.shiny.io and pull your account info with token and secret visible
+#rsconnect::setAccountInfo(name='ltcclark',
+#                          token='<>',
+#                          secret='<>')
+
+rsconnect::setAccountInfo(name='dustyturner', 
+                          token='A581909F2A807449F6DCE921BAF74BF1', 
+                          secret='hcsi/Fgb3kVw/lMJtz8673fTc8N3UEF6pUkO9XeZ')
+
+deployApp(forceUpdate=TRUE)
