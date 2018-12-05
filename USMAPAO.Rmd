@@ -1,6 +1,6 @@
 ---
 title: "USMAPAO"
-author: "D/Math LTC Clark, MAJ Turner, CPT Adams"
+author: "D/Math LTC Clark, [MAJ Turner](www.twitter.com), CPT Adams"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output: 
   html_document:
@@ -19,10 +19,17 @@ options(scipen = 999)
 ```
 
 ```{r include=FALSE}
-library(tidyverse)
-library(tidytext)
-library(lubridate)
-library(googlesheets)
+require(tidyverse)
+require(tidytext)
+require(lubridate)
+require(googlesheets)
+
+
+
+require(Rcpp)
+require(later)
+require(packrat) 
+
 added = read_csv("PAOTweets.csv") %>%
   filter(screenname != "Usma_cielo")
 
@@ -518,7 +525,7 @@ server <- function(input, output) {
   
 }
 
-shinyApp(ui = ui, server = server, options = list(height=800))
+shinyApp(ui = ui, server = server, options = list(height=500))
 
 ```
 
@@ -550,8 +557,13 @@ server <- function(input, output) {
   
 }
 
-shinyApp(ui = ui, server = server, options = list(height=800))
+shinyApp(ui = ui, server = server, options = list(height=500))
 
 ```
 
 ----
+
+### Acknowledgements
+
+Special thanks to @[kearneymw](https://twitter.com/kearneymw?lang=en) for the great R Package to extract this information.  
+
