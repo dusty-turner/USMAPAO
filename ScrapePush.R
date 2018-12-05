@@ -103,7 +103,7 @@ mostrecenttweets = text_df %>% mutate(id = "new") %>%
   filter(id == "new") %>%
   select(-id) %>% ungroup()
 
-
+ 
 oldtweets = text_df %>% bind_rows(addtothisdf) %>%
   group_by(screenname,time) %>%
   filter(n()==1) %>% ungroup()
