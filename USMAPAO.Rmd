@@ -1,6 +1,6 @@
 ---
 title: "USMAPAO"
-author: "D/Math LTC Clark, [MAJ Turner](www.twitter.com), CPT Adams"
+author: "D/Math LTC Clark, [MAJ Turner](https://twitter.com/DTDusty), CPT Adams"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output: 
   html_document:
