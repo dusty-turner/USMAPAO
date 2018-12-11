@@ -3,10 +3,12 @@ library(lubridate)
 library(googlesheets)
 library(rtweet)
 library(rsconnect)
-setwd("C:/Users/Nicholas/USMAPAO")
+# setwd("C:/Users/Nicholas/USMAPAO")
+setwd("C:/Users/Dusty.Turner/Desktop/R Work/USMAPAO")
 
 
-Twitter_tok<-readRDS("~/.rtweet_token1.rds") #Locate where your twitter token is stored
+# Twitter_tok<-readRDS("~/.rtweet_token1.rds") #Locate where your twitter token is stored
+Twitter_tok<-readRDS("~/.rtweet_token.rds") #Locate where your twitter token is stored
 
 df = data.frame(Sys.time())
 write.csv(df,"junk1.csv")
@@ -95,20 +97,20 @@ text_df = bind_rows(usma,wp,usna,naval,usaf,usafa) %>%
 addtothisdf = read_csv("PAOTweets.csv")
 
 mostrecenttweets = text_df %>% mutate(id = "new") %>%
-  bind_rows(addtothisdf %>% mutate(id = "old")) %>% 
-  group_by(screenname,time) %>% 
+  bind_rows(addtothisdf %>% mutate(id = "old")) %>%
+  group_by(screenname,time) %>%
   arrange(desc(time)) %>%
-  filter(n()>1) %>% 
+  filter(n()>1) %>%
   arrange(desc(favoritescount)) %>%
   filter(id == "new") %>%
   select(-id) %>% ungroup()
 
- 
+
 oldtweets = text_df %>% bind_rows(addtothisdf) %>%
   group_by(screenname,time) %>%
   filter(n()==1) %>% ungroup()
 
-added = oldtweets %>% bind_rows(mostrecenttweets) 
+added = oldtweets %>% bind_rows(mostrecenttweets)
 
 write.csv(added,"PAOTweets.csv", row.names = FALSE)
 
