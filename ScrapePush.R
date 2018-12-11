@@ -116,9 +116,10 @@ write.csv(added,"PAOTweets.csv", row.names = FALSE)
 
 df = data.frame(Sys.time())
 write.csv(df,"junk.csv")
+rsconnect::removeAccount("westpointmath")
 
 rsconnect::setAccountInfo(name='westpointmath', 
                           token='3E00B8DCBC70358D386EE10322E6374C', 
                           secret='i+sifq41K7/Ohd4lTxukuMe+jftXNpfmIYdtUVZa')
 
-deployApp(forceUpdate=TRUE,launch.browser=TRUE)
+rsconnect::deployApp(appName="USMAPAO",account="westpointmath",forceUpdate=TRUE,launch.browser=TRUE)
