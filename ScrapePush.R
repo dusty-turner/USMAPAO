@@ -123,3 +123,32 @@ rsconnect::setAccountInfo(name='westpointmath',
                           secret='i+sifq41K7/Ohd4lTxukuMe+jftXNpfmIYdtUVZa')
 
 rsconnect::deployApp(appName="USMAPAO",account="westpointmath",forceUpdate=TRUE,launch.browser=TRUE)
+
+###### this part creates the sentiment csv
+
+converted = added %>%
+  select(-lat,-lng,-coords_coords,-bbox_coords,-geo_coords) %>%
+  mutate(text = iconv(text, "UTF-8", "UTF-8",sub=''))
+
+senttest = get_sentences(converted$text)
+scores_by = sentiment_by(senttest)
+
+workingdata = converted %>%
+  mutate(polaritysent = scores_by$ave_sentiment) %>%
+  filter(time <= Sys.Date()) %>%
+  # filter(time >= Sys.Date()-6) %>%
+  mutate(search = ifelse(searchterm=="USMA" | searchterm=="WestPoint", "WestPoint",
+                         ifelse(searchterm=="USNA"|searchterm=="Naval Academy", "USNA", "USAFA"))) %>%
+  filter(search == "WestPoint") %>%
+  select(-location, -search, -searchterm, -line) %>%
+  mutate(time = round_date(time, unit = "day")) %>%
+  mutate(dayofweek = date(time)) %>%
+  mutate(influencescore = favoritescount*polaritysent)
+
+dailysentscore = workingdata %>%
+  group_by(dayofweek) %>%
+  summarise(AverageDailySentiment = average_downweighted_zero(polaritysent), n = n()) %>%
+  mutate(AverageDailySentiment = round(AverageDailySentiment,4))
+
+dailysentscore %>% 
+  write.csv("sentimentbyday.csv")
