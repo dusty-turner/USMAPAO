@@ -1,6 +1,6 @@
 ---
 title: "USMAPAO"
-author: "D/Math LTC Clark, [MAJ Turner](https://twitter.com/DTDusty), CPT Adams"
+author: "D/Math LTC Clark, [MAJ Turner](https://twitter.com/DTDusty?lang=en), CPT Adams"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output: 
   html_document:
@@ -198,11 +198,11 @@ kable(urls.neg) %>% kable_styling(font_size = 10)
 
 ----
 
-# Sentiment Analysis (Users and Words)
+# Sentiment Analysis (Words)
 
-The Plot tab below shows the number of words with both positive and negative sentiment by day.
+The plot below shows the number of words with both positive and negative sentiment relating to West Point.
 
-The table tab below shows the words with sentiment by user, time, follower count, and favorite count.  
+The table below shows the words with sentiment by user, time, follower count, and favorite count.  
 
 
 ```{r panels, echo=FALSE}
@@ -213,7 +213,7 @@ ui <- fluidPage(
     start = mintime,
     end = Sys.Date()),
   tabsetPanel(type = "tabs",
-              tabPanel("Plot", plotOutput("sentovertime")),
+              tabPanel("Total Positive and Negative Words", plotOutput("sentovertime")),
               tabPanel("Words in Tweets", dataTableOutput("tweettable")
    )
   )
@@ -258,7 +258,7 @@ shinyApp(ui = ui, server = server, options = list(height=600))
 
 ----
 
-# Sentiment Analysis (Users and Tweets)
+# Sentiment Analysis (Tweets)
 
 During the selected time period, the following users "netted" the following amounts of sentiment in their words throughout all their tweets.  
 
@@ -356,12 +356,9 @@ shinyApp(ui = ui, server = server, options = list(height=1200))
 
 ----
 
-# Sentiment Analysis Polarity (Users and Full Tweets)
+# Sentiment Analysis (Dot Model)
 
-The Plot tab below shows the number of words with both positive and negative sentiment by day.
-
-The table tab below shows the words with sentiment by user, time, follower count, and favorite count.  
-
+The Plot tab below shows the time and sentiment by tweet.  The size of the circle represents the number of times the tweet was favorited.
 
 ```{r polarity, echo=FALSE, message=FALSE, warning=FALSE}
 library(shiny)
@@ -372,7 +369,7 @@ library(plotly)
 ui <- fluidPage(
   dateRangeInput('dateRange',
     label = 'Please use the filter below to narrow your search criteria between dates of interest.',
-    start = Sys.Date()-days(7),
+    start = Sys.Date()-days(1),
     end = Sys.Date()),
   # checkboxGroupInput("checkGroup", 
   #   label = h3("Select The Academies You Would Like to Search"), 
@@ -437,15 +434,15 @@ server <- function(input, output) {
   # output$sentovertime = renderPlot({
   output$sentovertime = renderPlotly({
   p =  dataset3() %>%
-  ggplot(aes(x=time,y = polaritysent, color = fct_rev(searchterm))) +
-  geom_point(aes(size = favoritescount, fill = fct_rev(searchterm),alpha = polaritysent), shape = 21, text = ~text) +
+    ggplot(aes(x=time,y = polaritysent, color = fct_rev(searchterm),  text = paste("User:", screenname, "<br>Tweet:", text))) +
+  geom_point(aes(size = favoritescount, fill = fct_rev(searchterm),alpha = .7), shape = 21) +
   scale_fill_manual(values = c("Black", "Yellow", "Blue")) +
-  scale_color_manual(values = c("Black", "Blue", "White"), guide = "none") +
+  scale_color_manual(values = c("Black", "Yellow", "Blue"), guide = "none") +
   scale_alpha(guide = "none") +
   scale_x_datetime(labels = date_format("%d %b %Y"),
                    date_breaks = "1 day") +
   labs(x="Time",y="Polarity Sentiment", size = "Favorites Count", fill = "University", title = "Polarity Sentiment over Time by University")
-  p = ggplotly(p)
+  p = ggplotly(p, tooltip = "text")
   return(p)
   })
   
@@ -511,14 +508,14 @@ server <- function(input, output) {
     geom_line() +
     # geom_smooth() +
     theme(legend.position = "bottom") +
-    labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score") +
+    labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score", color = " ") +
     ylim(-1,1)
     } else if (input$option == "smooth") {
     dataset() %>%
     ggplot(aes(time, dayscore, color = Academy)) +
     geom_smooth(span = .3) +
     theme(legend.position = "bottom") +
-    labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score") +
+    labs(title = "Reputation Heartbeat", x = "Date", y = "Sentiment Score", color =  " ") +
     ylim(-1,1)
     }
   })
@@ -531,23 +528,39 @@ shinyApp(ui = ui, server = server, options = list(height=500))
 
 ----
 
-# Where are People Tweeting About USMA
+# Where are People Tweeting About The Academies?
 
 ```{r map, echo=FALSE}
 library(shiny)
 library(leaflet)
 library(htmltools)
 ui <- fluidPage(
-leafletOutput("mymap")
+  radioButtons("checkGroup",
+    label = h3("Select The Academy You Would Like to Search"),
+    choices = list("West Point" = "West Point", "Navy" = "Navy", "Air Force" = "Air Force"),
+    selected = "West Point"),
+leafletOutput("mymap"),
+verbatimTextOutput("this")
 )
 
 
 server <- function(input, output) {
 
+  output$this = renderText(input$checkGroup)
+  
  output$mymap <- renderLeaflet({
    
    added %>% 
+     mutate(Academy = case_when(searchterm=="USMA" ~ "West Point",
+                             searchterm=="WestPoint" ~ "West Point",
+                             searchterm=="USNA" ~ "Navy",
+                             searchterm=="United States NAval Academy" ~ "Navy",
+                             searchterm=="Air Force Academy" ~ "Air Force",
+                             searchterm=="USAFA" ~ "Air Force")) %>%
   filter(!is.na(lat)) %>%
+  # filter(Academy == input$checkGroup[1]) %>%
+  filter(Academy == input$checkGroup[1]) %>%
+  # filter(Academy == input$checkGroup[1] |search == input$checkGroup[2] | search == input$checkGroup[3]) %>%
   leaflet() %>% setView(-100, 40, zoom = 4) %>%
   addTiles() %>% # Add default OpenStreetMap map tiles
   addMarkers(~lng,~lat,popup = ~as.character(screenname), clusterOptions = markerClusterOptions())
@@ -557,7 +570,7 @@ server <- function(input, output) {
   
 }
 
-shinyApp(ui = ui, server = server, options = list(height=500))
+shinyApp(ui = ui, server = server, options = list(height=700))
 
 ```
 
